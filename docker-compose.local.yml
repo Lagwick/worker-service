@@ -1,0 +1,68 @@
+services:
+
+  # --------------------------------------------------------------------------
+  # Redis (placeholder) — раскомментируйте и настройте при необходимости.
+  # --------------------------------------------------------------------------
+
+  kafka:
+    container_name: "mom_bp_kafka"
+    image: "apache/kafka:4.3.0"
+    restart: "unless-stopped"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "9094:9094"
+    volumes:
+      - "mom_bp_kafka_data:/var/lib/kafka/data"
+    networks:
+      - "mom_bp_net"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  kafka-ui:
+    container_name: "mom_bp_kafka_ui"
+    image: "ghcr.io/kafbat/kafka-ui:v1.4.2"
+    restart: "unless-stopped"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "8090:8080"
+    networks:
+      - "mom_bp_net"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  jaeger:
+    container_name: "mom_bp_jaeger"
+    image: "jaegertracing/jaeger:2.16.0"
+    restart: "unless-stopped"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - "mom_bp_net"
+
+volumes:
+  mom_bp_kafka_data: {}
+
+networks:
+  mom_bp_net: {}
