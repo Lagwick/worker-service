@@ -143,7 +143,7 @@ func (b *Builder) BuildConsumerOrderCreated() {
 			group,
 		)
 		if err != nil {
-			b.err = err
+			b.err = fmt.Errorf("init order.created bus: %w", err)
 			return
 		}
 
