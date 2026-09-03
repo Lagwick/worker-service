@@ -8,14 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
-
 	"github.com/Lagwick/worker-service/internal/app/config/section"
 	"github.com/Lagwick/worker-service/internal/app/processor"
 	"github.com/Lagwick/worker-service/internal/app/util"
 	"github.com/Lagwick/worker-service/internal/pkg/http/httph"
 	"github.com/Lagwick/worker-service/internal/pkg/http/mzerolog"
+	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 )
 
 // httpProc — HTTP сервер, реализующий интерфейс processor.Processor.

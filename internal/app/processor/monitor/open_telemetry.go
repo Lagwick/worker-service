@@ -7,6 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Lagwick/worker-service/internal/app/config/section"
+	"github.com/Lagwick/worker-service/internal/app/processor"
+	"github.com/Lagwick/worker-service/internal/app/util"
+	"github.com/Lagwick/worker-service/internal/pkg/constant"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -18,11 +22,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/Lagwick/worker-service/internal/app/config/section"
-	"github.com/Lagwick/worker-service/internal/app/processor"
-	"github.com/Lagwick/worker-service/internal/app/util"
-	"github.com/Lagwick/worker-service/internal/pkg/constant"
 )
 
 const (

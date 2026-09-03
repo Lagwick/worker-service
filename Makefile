@@ -36,8 +36,7 @@ lint: ## Запуск линтера
 
 .PHONY: lint-fix
 lint-fix: ## Запуск линтера с автофиксом
-	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GO_LINT_VERSION} run --fix
-
+	GOPROXY=direct GOSUMDB=off go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GO_LINT_VERSION} run --fix --timeout=10m --config=./.golangci.yml
 # =============================================================================
 # Окружение (Docker)
 # =============================================================================

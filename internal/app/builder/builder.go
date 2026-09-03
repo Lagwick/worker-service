@@ -10,18 +10,21 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/rs/zerolog/log"
-	"github.com/urfave/cli/v2"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
-
 	"github.com/Lagwick/worker-service/internal/app/config"
+	"github.com/Lagwick/worker-service/internal/app/entity"
+	eorder "github.com/Lagwick/worker-service/internal/app/handler/event/order"
 	"github.com/Lagwick/worker-service/internal/app/processor"
+	eprocessor "github.com/Lagwick/worker-service/internal/app/processor/event"
 	rprocessor "github.com/Lagwick/worker-service/internal/app/processor/http"
 	mmonitor "github.com/Lagwick/worker-service/internal/app/processor/monitor"
 	"github.com/Lagwick/worker-service/internal/app/util"
 	"github.com/Lagwick/worker-service/internal/pkg/broker"
+	"github.com/Lagwick/worker-service/internal/pkg/broker/codec"
 	"github.com/Lagwick/worker-service/internal/pkg/constant"
 	"github.com/Lagwick/worker-service/internal/pkg/http/httph"
+	"github.com/rs/zerolog/log"
+	"github.com/urfave/cli/v2"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // Builder — структура для сборки зависимостей приложения.
@@ -41,7 +44,7 @@ type Builder struct {
 	// Kafka-клиент (общий producer + фабрика consumer groups)
 	kafkaClient *broker.KafkaClient
 
-	// TODO: добавить зависимости по мере появления (repositories, services, handlers, monitors).
+	busOrderCreated broker.Bus[entity.EventOrderCreated]
 }
 
 // NewBuilder создаёт новый Builder и настраивает обработку сигналов OS.
@@ -121,6 +124,41 @@ func (b *Builder) BuildBrokerKafka() {
 			processor.WatchForShutdown(ctx, wg, util.CloserFunc(client.Close))
 		}))
 	})
+}
+
+func (b *Builder) BuildConsumerOrderCreated() {
+	b.exec(func(b *Builder) {
+		cfg := config.Root.Broker.Kafka
+
+		topic := cfg.ModelOrder.Created.Topic
+		group := broker.Coalesce(
+			cfg.ModelOrder.Created.ConsumerGroup,
+			cfg.ConsumerGroup,
+		)
+
+		busOrderCreated, err := broker.NewBus[entity.EventOrderCreated](
+			b.kafkaClient,
+			codec.NewCodecJson[entity.EventOrderCreated](),
+			topic,
+			group,
+		)
+		if err != nil {
+			b.err = err
+			return
+		}
+
+		b.busOrderCreated = busOrderCreated
+
+		h := eorder.NewHandler()
+
+		b.processors = append(
+			b.processors,
+			eprocessor.NewOrderCreatedEventsCatcher(
+				h,
+				b.busOrderCreated,
+			),
+		)
+	}, b.kafkaClient)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
