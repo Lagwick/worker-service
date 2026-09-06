@@ -17,6 +17,7 @@ import (
 	eprocessor "github.com/Lagwick/worker-service/internal/app/processor/event"
 	rprocessor "github.com/Lagwick/worker-service/internal/app/processor/http"
 	mmonitor "github.com/Lagwick/worker-service/internal/app/processor/monitor"
+	rcredis "github.com/Lagwick/worker-service/internal/app/repository/conn/redis"
 	"github.com/Lagwick/worker-service/internal/app/util"
 	"github.com/Lagwick/worker-service/internal/pkg/broker"
 	"github.com/Lagwick/worker-service/internal/pkg/broker/codec"
@@ -30,10 +31,11 @@ import (
 // Builder — структура для сборки зависимостей приложения.
 // Использует паттерн Builder для последовательной инициализации компонентов.
 type Builder struct {
-	cCtx *cli.Context
-	ctx  context.Context
-	wg   sync.WaitGroup
-	err  error
+	cCtx      *cli.Context
+	ctx       context.Context
+	wg        sync.WaitGroup
+	err       error
+	connRedis *rcredis.Client
 
 	// Процессоры
 	processors []processor.Processor
@@ -159,6 +161,37 @@ func (b *Builder) BuildConsumerOrderCreated() {
 			),
 		)
 	}, b.kafkaClient)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///// REPOSITORY CONNECTIONS ///////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// BuildConnRedis открывает подключение к Redis и проверяет его через Ping.
+func (b *Builder) BuildConnRedis() {
+	b.exec(func(b *Builder) {
+		connRedis, err := rcredis.NewClient(
+			b.ctx,
+			config.Root.Repository.Redis,
+		)
+		if err != nil {
+			b.err = fmt.Errorf("init redis connection: %w", err)
+			return
+		}
+
+		b.connRedis = connRedis
+
+		b.processors = append(
+			b.processors,
+			processor.ProcessorFunc(func(ctx context.Context, wg *sync.WaitGroup) {
+				processor.WatchForShutdown(
+					ctx,
+					wg,
+					util.CloserFunc(connRedis.Close),
+				)
+			}),
+		)
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////////////
