@@ -22,6 +22,7 @@ func cmdSubscribeOrderCreated(cCtx *cli.Context) error {
 	app := builder.NewBuilder(cCtx)
 	app.BuildConfig()
 	app.BuildMonitorOpenTelemetry()
+	app.BuildConnRedis()
 	app.BuildBrokerKafka()
 	app.BuildConsumerOrderCreated()
 	app.BuildProcHttp()

@@ -16,10 +16,11 @@ import (
 type (
 	// Config — главная структура конфигурации сервиса.
 	Config struct {
-		Processor section.Processor
-		Monitor   section.Monitor
-		Broker    section.Broker
-		Meta      Meta `ignore:"true"`
+		Processor  section.Processor
+		Monitor    section.Monitor
+		Broker     section.Broker
+		Repository section.Repository
+		Meta       Meta `ignore:"true"`
 	}
 
 	// Meta содержит метаданные о загрузке конфига.
