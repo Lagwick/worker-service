@@ -23,6 +23,7 @@ import (
 	rcurrency "github.com/Lagwick/worker-service/internal/app/repository/currency"
 	"github.com/Lagwick/worker-service/internal/app/service"
 	scurrency "github.com/Lagwick/worker-service/internal/app/service/currency"
+	sdelivery "github.com/Lagwick/worker-service/internal/app/service/delivery"
 	"github.com/Lagwick/worker-service/internal/app/util"
 	"github.com/Lagwick/worker-service/internal/pkg/broker"
 	"github.com/Lagwick/worker-service/internal/pkg/broker/codec"
@@ -49,6 +50,7 @@ type Builder struct {
 
 	// Сервисы
 	currencyService service.Currency
+	deliveryService service.Delivery
 
 	// Процессоры
 	processors []processor.Processor
@@ -60,6 +62,9 @@ type Builder struct {
 	kafkaClient *broker.KafkaClient
 
 	busOrderCreated broker.Bus[entity.EventOrderCreated]
+
+	// Шина события order.delivery.calculated (producer)
+	busOrderDeliveryCalculated broker.Bus[entity.EventOrderDeliveryCalculated]
 }
 
 // NewBuilder создаёт новый Builder и настраивает обработку сигналов OS.
@@ -164,7 +169,10 @@ func (b *Builder) BuildConsumerOrderCreated() {
 
 		b.busOrderCreated = busOrderCreated
 
-		h := eorder.NewHandler()
+		h := eorder.NewHandler(
+			b.deliveryService,
+			b.busOrderDeliveryCalculated,
+		)
 
 		b.processors = append(
 			b.processors,
@@ -173,6 +181,26 @@ func (b *Builder) BuildConsumerOrderCreated() {
 				b.busOrderCreated,
 			),
 		)
+	}, b.kafkaClient, b.deliveryService, b.busOrderDeliveryCalculated)
+}
+
+// BuildBusOrderDeliveryCalculated создаёт publish-шину топика order.delivery.calculated.
+func (b *Builder) BuildBusOrderDeliveryCalculated() {
+	b.exec(func(b *Builder) {
+		cfg := config.Root.Broker.Kafka
+
+		busOrderDeliveryCalculated, err := broker.NewBus[entity.EventOrderDeliveryCalculated](
+			b.kafkaClient,
+			codec.NewCodecJson[entity.EventOrderDeliveryCalculated](),
+			cfg.ModelOrder.DeliveryCalculated.Topic,
+			cfg.ConsumerGroup,
+		)
+		if err != nil {
+			b.err = fmt.Errorf("init order.delivery.calculated bus: %w", err)
+			return
+		}
+
+		b.busOrderDeliveryCalculated = busOrderDeliveryCalculated
 	}, b.kafkaClient)
 }
 
@@ -244,6 +272,14 @@ func (b *Builder) BuildServiceCurrency() {
 			b.repoCurrencyRate,
 		)
 	}, b.clientFixer, b.repoCurrencyRate)
+}
+
+func (b *Builder) BuildServiceDelivery() {
+	b.exec(func(b *Builder) {
+		b.deliveryService = sdelivery.NewService(
+			b.currencyService,
+		)
+	}, b.currencyService)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
