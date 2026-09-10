@@ -26,7 +26,9 @@ func cmdSubscribeOrderCreated(cCtx *cli.Context) error {
 	app.BuildClientFixer()
 	app.BuildRepoCurrencyRate()
 	app.BuildServiceCurrency()
+	app.BuildServiceDelivery()
 	app.BuildBrokerKafka()
+	app.BuildBusOrderDeliveryCalculated()
 	app.BuildConsumerOrderCreated()
 	app.BuildProcHttp()
 
